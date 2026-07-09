@@ -1,134 +1,211 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Connectivity Debugger</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        #debug-log {
-            font-family: monospace;
-            font-size: 12px;
-            background: #1a1a1a;
-            color: #00ff00;
-            height: 200px;
-            overflow-y: auto;
-            padding: 10px;
-            border-top: 4px solid #444;
-        }
-        .log-error { color: #ff5555; }
-        .log-info { color: #55aaff; }
-        .log-success { color: #55ff55; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>家务 Chore Couple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col">
+<body class="lang-zh">
 
-    <div class="flex-grow p-6">
-        <header class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Firebase 接続診断</h1>
-            <p class="text-sm text-gray-600">この画面でテスト操作を行い、下のログを確認してください。</p>
-        </header>
+<div id="toast" class="toast"></div>
 
-        <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
-            <div>
-                <h2 class="font-semibold mb-2">1. 接続テスト</h2>
-                <button id="btn-connect" class="w-full bg-blue-600 text-white py-2 rounded-lg active:bg-blue-700">Firebase初期化 & 匿名認証</button>
-            </div>
+<!-- ===================== SCREEN: LOGIN / GROUP ENTRY ===================== -->
+<section id="screen-login" class="screen active">
+  <div class="lang-switch">
+    <button data-lang="zh" class="lang-btn active">中文</button>
+    <button data-lang="ja" class="lang-btn">日本語</button>
+    <button data-lang="en" class="lang-btn">EN</button>
+  </div>
 
-            <div>
-                <h2 class="font-semibold mb-2">2. データ保存テスト</h2>
-                <button id="btn-save" class="w-full bg-green-600 text-white py-2 rounded-lg active:bg-green-700">テストデータを送信</button>
-            </div>
-        </div>
+  <div class="brand">
+    <div class="brand-mark">
+      <span class="brand-half a"></span><span class="brand-half b"></span>
+    </div>
+    <h1 data-i18n="app_name">家务对</h1>
+    <p class="brand-tag" data-i18n="app_tagline">两个人，一份账</p>
+  </div>
 
-        <div class="mt-6 text-xs text-gray-500">
-            <p>※ Config情報が未設定の場合、必ずエラーになります。</p>
-        </div>
+  <div id="auth-block" class="card">
+    <button id="btn-google" class="btn btn-google">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 6.1 29.5 4 24 4c-7.8 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.3 0 10.1-2 13.7-5.4l-6.3-5.3C29.4 35 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.3 5.3C40.5 36.3 44 30.9 44 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+      <span data-i18n="signin_google">用 Google 账户登录</span>
+    </button>
+  </div>
+
+  <div id="group-block" class="card hidden">
+    <p class="muted" id="who-am-i"></p>
+    <div class="group-tabs">
+      <button class="tab-btn active" data-tab="join" data-i18n="join_group">加入小组</button>
+      <button class="tab-btn" data-tab="create" data-i18n="create_group">创建小组</button>
     </div>
 
-    <!-- 診断ログ表示エリア -->
-    <div id="debug-log">
-        <div class="log-info">[System] 診断ログが開始されました。操作を待機中...</div>
+    <div id="tab-join" class="tab-pane active">
+      <p class="hint" data-i18n="enter_passcode_hint">输入 5 位数密码加入伴侣的小组</p>
+      <input id="input-passcode" class="passcode-input" inputmode="numeric" maxlength="5" placeholder="•••••">
+      <button id="btn-join" class="btn btn-primary" data-i18n="btn_join">加入</button>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+    <div id="tab-create" class="tab-pane">
+      <p class="hint" data-i18n="create_hint">创建小组，系统会生成 5 位密码，分享给你的伴侣</p>
+      <button id="btn-create" class="btn btn-primary" data-i18n="btn_create">创建小组</button>
+      <div id="created-passcode" class="created-passcode hidden"></div>
+    </div>
 
-        const logElement = document.getElementById('debug-log');
-        
-        function logger(msg, type = 'info') {
-            const div = document.createElement('div');
-            const time = new Date().toLocaleTimeString();
-            div.className = `log-${type} mb-1`;
-            div.textContent = `[${time}] ${msg}`;
-            logElement.appendChild(div);
-            logElement.scrollTop = logElement.scrollHeight;
-        }
+    <button id="btn-signout" class="btn btn-ghost" data-i18n="sign_out">退出登录</button>
+  </div>
 
-        // --- ⚠ ここを自分のConfigに書き換える ⚠ ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyAVnIWuGLZdlx2MsyLAfsDgQ2zVkvh8JSc",
-  authDomain: "kajilog-135ed.firebaseapp.com",
-  projectId: "kajilog-135ed",
-  storageBucket: "kajilog-135ed.firebasestorage.app",
-  messagingSenderId: "506522172088",
-  appId: "1:506522172088:web:c3fe4ad929fc067151d24d"
-        };
-        // ----------------------------------------
+  <button id="btn-admin-entry" class="admin-entry" data-i18n="admin_entry">管理员入口</button>
+</section>
 
-        let app, auth, db;
+<!-- ===================== SCREEN: ADMIN LOGIN ===================== -->
+<section id="screen-admin-login" class="screen">
+  <div class="topbar"><button class="back-btn" data-back="screen-login">←</button><h2 data-i18n="admin_login_title">管理员登录</h2></div>
+  <div class="card center-card">
+    <p class="hint" data-i18n="admin_key_hint">输入管理员密钥</p>
+    <input id="input-admin-key" type="password" class="passcode-input wide">
+    <button id="btn-admin-login" class="btn btn-primary" data-i18n="btn_enter">进入</button>
+  </div>
+</section>
 
-        document.getElementById('btn-connect').addEventListener('click', async () => {
-            try {
-                logger("初期化中...", "info");
-                
-                if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-                    throw new Error("Configがデフォルトのままです。自分のIDに書き換えてください。");
-                }
+<!-- ===================== APP SHELL (after login+group) ===================== -->
+<section id="app-shell" class="screen">
+  <header class="app-header">
+    <div>
+      <span class="app-header-title" id="header-title" data-i18n="tab_dashboard">看板</span>
+    </div>
+    <div class="app-header-meta">
+      <span id="header-group-code">G001</span>
+      <span id="header-user-name">TANAKA</span>
+    </div>
+  </header>
 
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+  <!-- ---- DASHBOARD ---- -->
+  <div id="tab-dashboard-view" class="tab-view active">
+    <div class="score-card">
+      <h3 data-i18n="this_week_score">本周积分</h3>
+      <div class="pie-wrap">
+        <div id="pie" class="pie"></div>
+        <div class="pie-center">
+          <span id="pie-week-label"></span>
+        </div>
+      </div>
+      <div class="score-legend">
+        <div class="legend-item">
+          <span class="dot dot-a"></span>
+          <span id="score-me-name" data-i18n="you">你</span>
+          <b id="score-me-pts">0pts</b>
+        </div>
+        <div class="legend-item">
+          <span class="dot dot-b"></span>
+          <span id="score-partner-name">-</span>
+          <b id="score-partner-pts">0pts</b>
+        </div>
+      </div>
+    </div>
 
-                logger("SDK読み込み完了。匿名認証を開始します...", "info");
-                
-                const result = await signInAnonymously(auth);
-                logger(`認証成功！ ユーザーID: ${result.user.uid}`, "success");
+    <h3 class="section-title" data-i18n="tap_to_log">点击记录家务</h3>
+    <div id="chore-grid" class="chore-grid"></div>
+    <button id="btn-add-custom" class="chore-tile chore-tile-add" data-i18n="custom_chore">+ 自定义</button>
+  </div>
 
-            } catch (error) {
-                logger(`エラー発生: ${error.message}`, "error");
-                console.error(error);
-            }
-        });
+  <!-- ---- STATISTICS ---- -->
+  <div id="tab-stats-view" class="tab-view">
+    <div class="card">
+      <h3 data-i18n="monthly_trends">月度趋势</h3>
+      <div class="legend-item small"><span class="dot dot-a"></span><span data-i18n="you">你</span></div>
+      <div class="legend-item small"><span class="dot dot-b"></span><span id="stats-partner-name">-</span></div>
+      <svg id="trend-svg" viewBox="0 0 300 140" class="trend-svg"></svg>
+      <select id="month-select" class="month-select"></select>
+    </div>
+    <div class="card">
+      <h3 data-i18n="recent_logs">最近记录</h3>
+      <table class="log-table">
+        <thead><tr><th data-i18n="col_date">日期</th><th data-i18n="col_member">成员</th><th data-i18n="col_task">家务</th><th data-i18n="col_pts">分数</th></tr></thead>
+        <tbody id="log-table-body"></tbody>
+      </table>
+    </div>
+  </div>
 
-        document.getElementById('btn-save').addEventListener('click', async () => {
-            try {
-                if (!db) throw new Error("まず「接続テスト」を完了させてください。");
+  <!-- ---- HISTORY ---- -->
+  <div id="tab-history-view" class="tab-view">
+    <div class="filter-row">
+      <button class="filter-btn active" data-filter="all" data-i18n="filter_all">全部</button>
+      <button class="filter-btn" data-filter="me" data-i18n="filter_me">只看我的</button>
+      <button class="filter-btn" data-filter="partner" data-i18n="filter_partner">只看伴侣</button>
+    </div>
+    <div id="history-list" class="history-list"></div>
+  </div>
 
-                logger("Firestoreへ書き込み中...", "info");
-                
-                const docRef = await addDoc(collection(db, "debug_test"), {
-                    message: "iPadからのテスト送信",
-                    timestamp: serverTimestamp(),
-                    device: navigator.userAgent
-                });
+  <!-- ---- SETTINGS & ADMIN ---- -->
+  <div id="tab-settings-view" class="tab-view">
+    <div class="card list-card">
+      <button class="list-row" id="row-manage-tasks"><span data-i18n="manage_tasks">管理家务</span><span>›</span></button>
+      <button class="list-row" id="row-change-passcode"><span data-i18n="change_passcode">修改密码</span><span>›</span></button>
+      <button class="list-row" id="row-exit-group"><span data-i18n="exit_group">退出小组</span><span>›</span></button>
+    </div>
 
-                logger(`書き込み成功！ ドキュメントID: ${docRef.id}`, "success");
-                logger("Firebase ConsoleのFirestoreタブを確認してください。", "success");
+    <div class="lang-switch settings-lang">
+      <button data-lang="zh" class="lang-btn active">中文</button>
+      <button data-lang="ja" class="lang-btn">日本語</button>
+      <button data-lang="en" class="lang-btn">EN</button>
+    </div>
 
-            } catch (error) {
-                logger(`保存エラー: ${error.message}`, "error");
-            }
-        });
+    <div class="admin-console-card">
+      <h3 data-i18n="admin_console" class="admin-console-title">管理控制台（仅管理员）</h3>
+      <div id="admin-locked">
+        <p class="hint" data-i18n="admin_key_hint">输入管理员密钥</p>
+        <input id="input-admin-key-2" type="password" class="passcode-input wide">
+        <button id="btn-admin-unlock" class="btn btn-primary" data-i18n="btn_enter">进入</button>
+      </div>
+      <div id="admin-unlocked" class="hidden">
+        <div class="admin-stats">
+          <div><b id="admin-total-groups">0</b><span data-i18n="total_groups">总组数</span></div>
+          <div><b id="admin-total-users">0</b><span data-i18n="total_users">总用户数</span></div>
+          <div><b id="admin-total-records">0</b><span data-i18n="total_records">总记录数</span></div>
+        </div>
+        <button class="list-row" id="row-view-groups"><span data-i18n="view_all_groups">查看所有小组</span><span>›</span></button>
+        <button class="list-row" id="row-view-users"><span data-i18n="view_all_users">查看所有用户</span><span>›</span></button>
+        <div id="admin-detail"></div>
+      </div>
+    </div>
+  </div>
 
-        // ネットワーク状態の監視
-        window.addEventListener('online', () => logger("ネットワークがオンラインになりました", "info"));
-        window.addEventListener('offline', () => logger("ネットワークがオフラインです", "error"));
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="dashboard">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z"/></svg>
+      <span data-i18n="tab_dashboard">看板</span>
+    </button>
+    <button class="nav-btn" data-tab="stats">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zm2 12h2v4H7zm4-6h2v10h-2zm4 3h2v7h-2z"/></svg>
+      <span data-i18n="tab_stats">统计</span>
+    </button>
+    <button class="nav-btn" data-tab="history">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M13 3a9 9 0 100 18 9 9 0 000-18zm.5 4.5v5l4 2-.75 1.5L11.5 14V7.5z"/></svg>
+      <span data-i18n="tab_history">记录</span>
+    </button>
+    <button class="nav-btn" data-tab="settings">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 2a4 4 0 100 8 4 4 0 000-8zm0 10c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg>
+      <span data-i18n="tab_settings">我</span>
+    </button>
+  </nav>
+</section>
 
-    </script>
+<!-- ===================== MODAL: ADD CUSTOM CHORE ===================== -->
+<div id="modal-custom" class="modal hidden">
+  <div class="modal-box">
+    <h3 data-i18n="custom_chore_title">新增自定义家务</h3>
+    <input id="custom-name" class="text-input" data-i18n-ph="custom_name_ph" placeholder="家务名称">
+    <input id="custom-points" class="text-input" type="number" min="1" data-i18n-ph="custom_pts_ph" placeholder="分数">
+    <div class="modal-actions">
+      <button id="custom-cancel" class="btn btn-ghost" data-i18n="cancel">取消</button>
+      <button id="custom-save" class="btn btn-primary" data-i18n="save">保存</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
-
