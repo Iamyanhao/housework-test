@@ -211,33 +211,38 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   currentUser = user;
-  const uref = doc(db, "users", user.uid);
-  const usnap = await getDoc(uref);
-  if (!usnap.exists()) {
-    await setDoc(uref, {
-      name: user.displayName || "",
-      email: user.email || "",
-      photoURL: user.photoURL || "",
-      groupId: null,
-      createdAt: serverTimestamp(),
-      lastLogin: serverTimestamp(),
-      loginCount: 1
-    });
-  } else {
-    await updateDoc(uref, { lastLogin: serverTimestamp(), loginCount: increment(1) });
-  }
-  await addDoc(collection(db, "loginLogs"), { uid: user.uid, timestamp: serverTimestamp() });
-  userDoc = (await getDoc(uref)).data();
+  try {
+    const uref = doc(db, "users", user.uid);
+    const usnap = await getDoc(uref);
+    if (!usnap.exists()) {
+      await setDoc(uref, {
+        name: user.displayName || "",
+        email: user.email || "",
+        photoURL: user.photoURL || "",
+        groupId: null,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        loginCount: 1
+      });
+    } else {
+      await updateDoc(uref, { lastLogin: serverTimestamp(), loginCount: increment(1) });
+    }
+    await addDoc(collection(db, "loginLogs"), { uid: user.uid, timestamp: serverTimestamp() });
+    userDoc = (await getDoc(uref)).data();
 
-  document.getElementById("auth-block").classList.add("hidden");
-  document.getElementById("group-block").classList.remove("hidden");
-  document.getElementById("who-am-i").textContent = userDoc.name + " · " + userDoc.email;
+    document.getElementById("auth-block").classList.add("hidden");
+    document.getElementById("group-block").classList.remove("hidden");
+    document.getElementById("who-am-i").textContent = userDoc.name + " · " + userDoc.email;
 
-  if (userDoc.groupId) {
-    groupId = userDoc.groupId;
-    await enterApp();
-  } else {
-    showScreen("screen-login");
+    if (userDoc.groupId) {
+      groupId = userDoc.groupId;
+      await enterApp();
+    } else {
+      showScreen("screen-login");
+    }
+  } catch (e) {
+    showToast("错误 / Error: " + e.code + " — " + e.message);
+    console.error(e);
   }
 });
 
