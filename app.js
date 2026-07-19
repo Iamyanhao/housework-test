@@ -321,6 +321,10 @@ async function enterApp() {
       renderChoreGrid();
       renderStats();
       renderHistory();
+    },
+    (err) => {
+      showToast("记录同步错误 / Error: " + err.code + " — " + err.message);
+      console.error(err);
     }
   );
 }
