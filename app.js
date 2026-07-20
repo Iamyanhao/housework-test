@@ -46,7 +46,7 @@ const I18N = {
     monthly_trends: "月度趋势", recent_logs: "最近记录",
     col_date: "日期", col_member: "成员", col_task: "家务", col_pts: "分数",
     filter_all: "全部", filter_me: "只看我的", filter_partner: "只看伴侣",
-    manage_tasks: "管理家务", change_passcode: "修改密码", exit_group: "退出小组",
+    manage_tasks: "管理家务", change_passcode: "修改密码", current_passcode: "当前密码", exit_group: "退出小组",
     admin_console: "管理控制台（仅管理员）",
     total_groups: "总组数", total_users: "总用户数", total_records: "总记录数",
     view_all_groups: "查看所有小组", view_all_users: "查看所有用户",
@@ -74,7 +74,7 @@ const I18N = {
     monthly_trends: "月間推移", recent_logs: "最近の記録",
     col_date: "日付", col_member: "メンバー", col_task: "家事", col_pts: "点数",
     filter_all: "すべて", filter_me: "自分のみ", filter_partner: "パートナーのみ",
-    manage_tasks: "家事を管理", change_passcode: "パスコード変更", exit_group: "グループを退出",
+    manage_tasks: "家事を管理", change_passcode: "パスコード変更", current_passcode: "現在のパスコード", exit_group: "グループを退出",
     admin_console: "管理コンソール（管理者のみ）",
     total_groups: "総グループ数", total_users: "総ユーザー数", total_records: "総記録数",
     view_all_groups: "全グループを表示", view_all_users: "全ユーザーを表示",
@@ -102,7 +102,7 @@ const I18N = {
     monthly_trends: "Monthly trends", recent_logs: "Recent logs",
     col_date: "Date", col_member: "Member", col_task: "Task", col_pts: "Pts",
     filter_all: "All", filter_me: "Only me", filter_partner: "Only partner",
-    manage_tasks: "Manage tasks", change_passcode: "Change passcode", exit_group: "Exit group",
+    manage_tasks: "Manage tasks", change_passcode: "Change passcode", current_passcode: "Current passcode", exit_group: "Exit group",
     admin_console: "Admin console (admin only)",
     total_groups: "Total groups", total_users: "Total users", total_records: "Total records",
     view_all_groups: "View all groups", view_all_users: "View all users",
@@ -301,6 +301,8 @@ async function enterApp() {
   unsubGroup = onSnapshot(doc(db, "groups", groupId), (snap) => {
     groupDoc = { id: snap.id, ...snap.data() };
     document.getElementById("header-group-code").textContent = groupDoc.passcode ? "G-" + groupDoc.passcode : "";
+    const pcEl = document.getElementById("current-passcode-val");
+    if (pcEl) pcEl.textContent = groupDoc.passcode || "-";
     renderDashboard();
     renderStats();
   });
@@ -548,11 +550,45 @@ document.getElementById("row-exit-group").addEventListener("click", async () => 
   showScreen("screen-login");
 });
 
+document.getElementById("row-copy-passcode").addEventListener("click", () => {
+  if (groupDoc && groupDoc.passcode) showPasscodeModal(groupDoc.passcode);
+});
+
 document.getElementById("row-change-passcode").addEventListener("click", async () => {
   const code = randomPasscode();
   await updateDoc(doc(db, "groups", groupId), { passcode: code });
-  showToast(t("passcode_changed") + code);
+  showPasscodeModal(code);
 });
+
+function showPasscodeModal(code) {
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box" style="text-align:center;">
+      <h3>${t("passcode_changed")}</h3>
+      <div id="passcode-display" style="font-family:'Space Grotesk',monospace;font-size:34px;letter-spacing:8px;background:var(--bg);border-radius:12px;padding:16px;margin:14px 0;">${code}</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="passcode-close">${t("cancel")}</button>
+        <button class="btn btn-primary" id="passcode-copy">${lang === "zh" ? "复制" : lang === "ja" ? "コピー" : "Copy"}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector("#passcode-close").addEventListener("click", () => modal.remove());
+  modal.querySelector("#passcode-copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast(t("saved"));
+    } catch (e) {
+      // fallback: select the text so the user can manually copy
+      const range = document.createRange();
+      range.selectNodeContents(modal.querySelector("#passcode-display"));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      showToast(lang === "zh" ? "已选中，请手动复制" : lang === "ja" ? "選択しました。コピーしてください" : "Selected — copy manually");
+    }
+  });
+}
 
 document.getElementById("row-manage-tasks").addEventListener("click", () => {
   const list = customChores.map(c =>
