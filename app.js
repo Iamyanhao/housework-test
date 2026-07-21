@@ -595,7 +595,8 @@ document.getElementById("row-manage-tasks").addEventListener("click", () => {
     `<div class="admin-group-row"><b>${c.name}</b> · ${c.points}pts
       <button class="admin-small-btn" data-del="${c.id}">${t("delete")}</button></div>`
   ).join("") || `<p class="hint">—</p>`;
-  const area = document.getElementById("admin-detail");
+  const area = document.getElementById("manage-tasks-detail");
+  area.classList.remove("hidden");
   area.innerHTML = `<h3>${t("manage_tasks")}</h3>${list}`;
   area.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", async () => {
     await deleteDoc(doc(db, "groups", groupId, "chores", btn.dataset.del));
