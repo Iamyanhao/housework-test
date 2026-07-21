@@ -59,7 +59,8 @@ const I18N = {
     logged: "已记录", adjust_score: "调整积分", dissolve_group: "解散小组",
     name_label: "姓名", email_label: "邮箱", created_label: "注册时间",
     last_login_label: "最后登录", login_count_label: "登录次数",
-    delete: "删除", saved: "已保存"
+    delete: "删除", saved: "已保存",
+    edit: "编辑", edit_record_title: "编辑家务记录", confirm_delete_record: "确定要删除这条记录吗？对方看板上的锁定状态也会一起解除。"
   },
   ja: {
     app_name: "カジログ", app_tagline: "ふたりで、ひとつの家計簿",
@@ -87,7 +88,8 @@ const I18N = {
     logged: "記録しました", adjust_score: "スコアを調整", dissolve_group: "グループを解散",
     name_label: "名前", email_label: "メール", created_label: "登録日",
     last_login_label: "最終ログイン", login_count_label: "ログイン回数",
-    delete: "削除", saved: "保存しました"
+    delete: "削除", saved: "保存しました",
+    edit: "編集", edit_record_title: "記録を編集", confirm_delete_record: "この記録を削除しますか？相手の画面のロックも解除されます。"
   },
   en: {
     app_name: "Chore Couple", app_tagline: "Two people, one scoreboard",
@@ -115,7 +117,8 @@ const I18N = {
     logged: "Logged", adjust_score: "Adjust score", dissolve_group: "Dissolve group",
     name_label: "Name", email_label: "Email", created_label: "Joined",
     last_login_label: "Last login", login_count_label: "Login count",
-    delete: "Delete", saved: "Saved"
+    delete: "Delete", saved: "Saved",
+    edit: "Edit", edit_record_title: "Edit chore record", confirm_delete_record: "Delete this record? It will also unlock the chore tile on your partner's screen."
   }
 };
 let lang = localStorage.getItem("jiawu_lang") || "zh";
@@ -521,8 +524,48 @@ function renderHistory() {
   if (historyFilter === "partner") items = records.filter(r => r.uid === pUid);
   list.innerHTML = items.map(r => {
     const who = r.uid === currentUser.uid ? t("you") : (r.userName || "-");
-    return `<div class="history-item"><div><span class="who">${who}</span> · ${r.choreName}</div><div><span>${r.date}</span> <span class="pts">${r.points}pts</span></div></div>`;
+    const mine = r.uid === currentUser.uid;
+    const actions = mine ? `
+      <div class="history-actions">
+        <button data-edit="${r.id}">${t("edit")}</button>
+        <button data-del="${r.id}">${t("delete")}</button>
+      </div>` : "";
+    return `<div class="history-item"><div><span class="who">${who}</span> · ${r.choreName}</div>
+      <div class="history-right"><div><span>${r.date}</span> <span class="pts">${r.points}pts</span></div>${actions}</div></div>`;
   }).join("");
+  list.querySelectorAll("[data-edit]").forEach(btn => btn.addEventListener("click", () => {
+    const rec = records.find(r => r.id === btn.dataset.edit);
+    if (rec) editRecordModal(rec);
+  }));
+  list.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", async () => {
+    if (!confirm(t("confirm_delete_record"))) return;
+    await deleteDoc(doc(db, "records", btn.dataset.del));
+  }));
+}
+
+function editRecordModal(rec) {
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3>${t("edit_record_title")}</h3>
+      <input id="edit-choreName" class="text-input" value="${rec.choreName}">
+      <input id="edit-points" class="text-input" type="number" value="${rec.points}">
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="edit-cancel">${t("cancel")}</button>
+        <button class="btn btn-primary" id="edit-save">${t("save")}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector("#edit-cancel").addEventListener("click", () => modal.remove());
+  modal.querySelector("#edit-save").addEventListener("click", async () => {
+    const choreName = modal.querySelector("#edit-choreName").value.trim();
+    const points = Number(modal.querySelector("#edit-points").value);
+    if (!choreName || !points) return;
+    await updateDoc(doc(db, "records", rec.id), { choreName, points });
+    modal.remove();
+    showToast(t("saved"));
+  });
 }
 
 // ---------------------------------------------------------------
