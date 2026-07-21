@@ -49,7 +49,7 @@ const I18N = {
     manage_tasks: "管理家务", change_passcode: "修改密码", current_passcode: "当前密码", exit_group: "退出小组",
     admin_console: "管理控制台（仅管理员）",
     total_groups: "总组数", total_users: "总用户数", total_records: "总记录数",
-    view_all_groups: "查看所有小组", view_all_users: "查看所有用户",
+    view_all_groups: "查看所有小组", view_all_users: "查看所有用户", view_all_records: "查看所有记录",
     custom_chore_title: "新增自定义家务", custom_name_ph: "家务名称", custom_pts_ph: "分数",
     cancel: "取消", save: "保存",
     already_done_by: "已由 {name} 完成", i_did: "我做的",
@@ -78,7 +78,7 @@ const I18N = {
     manage_tasks: "家事を管理", change_passcode: "パスコード変更", current_passcode: "現在のパスコード", exit_group: "グループを退出",
     admin_console: "管理コンソール（管理者のみ）",
     total_groups: "総グループ数", total_users: "総ユーザー数", total_records: "総記録数",
-    view_all_groups: "全グループを表示", view_all_users: "全ユーザーを表示",
+    view_all_groups: "全グループを表示", view_all_users: "全ユーザーを表示", view_all_records: "全記録を表示",
     custom_chore_title: "カスタム家事を追加", custom_name_ph: "家事の名前", custom_pts_ph: "点数",
     cancel: "キャンセル", save: "保存",
     already_done_by: "{name} が完了済み", i_did: "自分が完了",
@@ -107,7 +107,7 @@ const I18N = {
     manage_tasks: "Manage tasks", change_passcode: "Change passcode", current_passcode: "Current passcode", exit_group: "Exit group",
     admin_console: "Admin console (admin only)",
     total_groups: "Total groups", total_users: "Total users", total_records: "Total records",
-    view_all_groups: "View all groups", view_all_users: "View all users",
+    view_all_groups: "View all groups", view_all_users: "View all users", view_all_records: "View all records",
     custom_chore_title: "Add custom chore", custom_name_ph: "Chore name", custom_pts_ph: "Points",
     cancel: "Cancel", save: "Save",
     already_done_by: "Already done by {name}", i_did: "Done by me",
@@ -747,6 +747,40 @@ document.getElementById("row-view-users").addEventListener("click", async () => 
     await updateDoc(doc(db, "users", uid), { name: val });
     showToast(t("saved"));
   }));
+});
+
+document.getElementById("row-view-records").addEventListener("click", async () => {
+  const area = document.getElementById("admin-detail");
+  area.innerHTML = `<h3>${t("view_all_records")}</h3><p class="hint">…</p>`;
+  try {
+    const recSnap = await getDocs(query(collection(db, "records"), orderBy("timestamp", "desc"), limit(100)));
+    const rows = recSnap.docs.map(d => {
+      const r = { id: d.id, ...d.data() };
+      return `
+        <div class="admin-group-row">
+          <div>${r.date} · ${r.userName || r.uid} · <b>${r.choreName}</b> · ${r.points}pts</div>
+          <div class="row-actions">
+            <button class="admin-small-btn" data-admin-edit="${r.id}">${t("edit")}</button>
+            <button class="admin-small-btn" data-admin-del="${r.id}">${t("delete")}</button>
+          </div>
+        </div>`;
+    });
+    area.innerHTML = `<h3>${t("view_all_records")}</h3>` + (rows.join("") || `<p class="hint">—</p>`);
+    recSnap.docs.forEach(d => {
+      const r = { id: d.id, ...d.data() };
+      const editBtn = area.querySelector(`[data-admin-edit="${r.id}"]`);
+      if (editBtn) editBtn.addEventListener("click", () => editRecordModal(r));
+    });
+    area.querySelectorAll("[data-admin-del]").forEach(btn => btn.addEventListener("click", async () => {
+      if (!confirm(t("confirm_delete_record"))) return;
+      await deleteDoc(doc(db, "records", btn.dataset.adminDel));
+      document.getElementById("row-view-records").click();
+    }));
+  } catch (e) {
+    area.innerHTML = `<h3>${t("view_all_records")}</h3>`;
+    showToast("错误 / Error: " + e.code + " — " + e.message);
+    console.error(e);
+  }
 });
 
 // initial i18n paint
