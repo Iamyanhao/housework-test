@@ -39,6 +39,7 @@ const I18N = {
     join_group: "加入小组", create_group: "创建小组",
     enter_passcode_hint: "输入 5 位数密码加入伴侣的小组", btn_join: "加入",
     create_hint: "创建小组，系统会生成 5 位密码，分享给你的伴侣", btn_create: "创建小组",
+    enter_group_name: "给你们的小组起个名字（可留空）", default_group_name: "我们的家", rename_group: "修改小组名字",
     sign_out: "退出登录", admin_entry: "管理员入口",
     admin_login_title: "管理员登录", admin_key_hint: "输入管理员密钥", btn_enter: "进入",
     tab_dashboard: "看板", tab_stats: "统计", tab_history: "记录", tab_settings: "我",
@@ -68,6 +69,7 @@ const I18N = {
     join_group: "グループに参加", create_group: "グループ作成",
     enter_passcode_hint: "5桁のパスコードを入力してパートナーのグループに参加", btn_join: "参加",
     create_hint: "グループを作成すると5桁のパスコードが発行されます。パートナーに共有してください", btn_create: "グループ作成",
+    enter_group_name: "グループの名前を入力（空欄可）", default_group_name: "わたしたちの家", rename_group: "グループ名を変更",
     sign_out: "ログアウト", admin_entry: "管理者入口",
     admin_login_title: "管理者ログイン", admin_key_hint: "管理者キーを入力", btn_enter: "入る",
     tab_dashboard: "ホーム", tab_stats: "統計", tab_history: "履歴", tab_settings: "設定",
@@ -97,6 +99,7 @@ const I18N = {
     join_group: "Join Group", create_group: "Create Group",
     enter_passcode_hint: "Enter the 5-digit passcode to join your partner's group", btn_join: "Join",
     create_hint: "Create a group and get a 5-digit passcode to share with your partner", btn_create: "Create Group",
+    enter_group_name: "Name your group (optional)", default_group_name: "Our Home", rename_group: "Rename group",
     sign_out: "Sign out", admin_entry: "Admin entrance",
     admin_login_title: "Admin login", admin_key_hint: "Enter admin key", btn_enter: "Enter",
     tab_dashboard: "Dashboard", tab_stats: "Stats", tab_history: "History", tab_settings: "Me",
@@ -272,8 +275,9 @@ document.getElementById("btn-join").addEventListener("click", async () => {
 
 document.getElementById("btn-create").addEventListener("click", async () => {
   const code = randomPasscode();
+  const groupName = (prompt(t("enter_group_name")) || "").trim() || t("default_group_name");
   const gref = await addDoc(collection(db, "groups"), {
-    name: "G-" + code,
+    name: groupName,
     passcode: code,
     memberUids: [currentUser.uid],
     createdAt: serverTimestamp()
@@ -303,7 +307,7 @@ async function enterApp() {
 
   unsubGroup = onSnapshot(doc(db, "groups", groupId), (snap) => {
     groupDoc = { id: snap.id, ...snap.data() };
-    document.getElementById("header-group-code").textContent = groupDoc.passcode ? "G-" + groupDoc.passcode : "";
+    document.getElementById("header-group-code").textContent = groupDoc.name || "";
     const pcEl = document.getElementById("current-passcode-val");
     if (pcEl) pcEl.textContent = groupDoc.passcode || "-";
     renderDashboard();
@@ -595,6 +599,18 @@ document.getElementById("row-exit-group").addEventListener("click", async () => 
 
 document.getElementById("row-copy-passcode").addEventListener("click", () => {
   if (groupDoc && groupDoc.passcode) showPasscodeModal(groupDoc.passcode);
+});
+
+document.getElementById("row-rename-group").addEventListener("click", async () => {
+  try {
+    const newName = (prompt(t("enter_group_name"), (groupDoc && groupDoc.name) || "") || "").trim();
+    if (!newName) return;
+    await updateDoc(doc(db, "groups", groupId), { name: newName });
+    showToast(t("saved"));
+  } catch (e) {
+    showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
+    console.error(e);
+  }
 });
 
 document.getElementById("row-change-passcode").addEventListener("click", async () => {
