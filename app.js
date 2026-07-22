@@ -202,7 +202,7 @@ let isAdmin = false;
 // ---------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------
-document.getElementById("btn-google").addEventListener("click", async () => {
+document.getElementById("btn-google")?.addEventListener("click", async () => {
   try {
     await signInWithPopup(auth, provider);
   } catch (e) {
@@ -210,7 +210,7 @@ document.getElementById("btn-google").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("btn-email-login").addEventListener("click", async () => {
+document.getElementById("btn-email-login")?.addEventListener("click", async () => {
   const email = document.getElementById("email-input").value.trim();
   const pass = document.getElementById("password-input").value;
   if (!email || !pass) return showToast(t("email_pass_required"));
@@ -221,7 +221,7 @@ document.getElementById("btn-email-login").addEventListener("click", async () =>
   }
 });
 
-document.getElementById("btn-email-signup").addEventListener("click", async () => {
+document.getElementById("btn-email-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("email-input").value.trim();
   const pass = document.getElementById("password-input").value;
   if (!email || !pass) return showToast(t("email_pass_required"));
@@ -231,7 +231,7 @@ document.getElementById("btn-email-signup").addEventListener("click", async () =
     showToast(e.code + " — " + e.message);
   }
 });
-document.getElementById("btn-signout").addEventListener("click", async () => {
+document.getElementById("btn-signout")?.addEventListener("click", async () => {
   await cleanupListeners();
   await signOut(auth);
 });
@@ -289,7 +289,7 @@ document.querySelectorAll(".tab-btn").forEach(b => b.addEventListener("click", (
   document.getElementById("tab-" + b.dataset.tab).classList.add("active");
 }));
 
-document.getElementById("btn-join").addEventListener("click", async () => {
+document.getElementById("btn-join")?.addEventListener("click", async () => {
   const code = document.getElementById("input-passcode").value.trim();
   if (code.length !== 5) return showToast(t("err_passcode"));
   const snap = await getDocs(query(collection(db, "groups"), where("passcode", "==", code)));
@@ -302,7 +302,7 @@ document.getElementById("btn-join").addEventListener("click", async () => {
   await enterApp();
 });
 
-document.getElementById("btn-create").addEventListener("click", async () => {
+document.getElementById("btn-create")?.addEventListener("click", async () => {
   const code = randomPasscode();
   const groupName = (prompt(t("enter_group_name")) || "").trim() || t("default_group_name");
   const gref = await addDoc(collection(db, "groups"), {
@@ -460,13 +460,13 @@ async function logChore(chore) {
   showToast(t("logged"));
 }
 
-document.getElementById("btn-add-custom").addEventListener("click", () => {
+document.getElementById("btn-add-custom")?.addEventListener("click", () => {
   document.getElementById("modal-custom").classList.remove("hidden");
 });
-document.getElementById("custom-cancel").addEventListener("click", () => {
+document.getElementById("custom-cancel")?.addEventListener("click", () => {
   document.getElementById("modal-custom").classList.add("hidden");
 });
-document.getElementById("custom-save").addEventListener("click", async () => {
+document.getElementById("custom-save")?.addEventListener("click", async () => {
   const name = document.getElementById("custom-name").value.trim();
   const pts = Number(document.getElementById("custom-points").value);
   if (!name || !pts) return;
@@ -490,7 +490,7 @@ function populateMonthSelect() {
   sel.innerHTML = sorted.map(m => `<option value="${m}">${m}</option>`).join("");
   sel.value = sorted.includes(prevVal) ? prevVal : sorted[0];
 }
-document.getElementById("month-select").addEventListener("change", renderStats);
+document.getElementById("month-select")?.addEventListener("change", renderStats);
 
 function renderStats() {
   if (!groupDoc) return;
@@ -615,7 +615,7 @@ document.querySelectorAll(".nav-btn").forEach(b => b.addEventListener("click", (
 // ---------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------
-document.getElementById("row-exit-group").addEventListener("click", async () => {
+document.getElementById("row-exit-group")?.addEventListener("click", async () => {
   if (!confirm(t("confirm_exit"))) return;
   await updateDoc(doc(db, "groups", groupId), { memberUids: arrayRemove(currentUser.uid) });
   await updateDoc(doc(db, "users", currentUser.uid), { groupId: null });
@@ -626,11 +626,11 @@ document.getElementById("row-exit-group").addEventListener("click", async () => 
   showScreen("screen-login");
 });
 
-document.getElementById("row-copy-passcode").addEventListener("click", () => {
+document.getElementById("row-copy-passcode")?.addEventListener("click", () => {
   if (groupDoc && groupDoc.passcode) showPasscodeModal(groupDoc.passcode);
 });
 
-document.getElementById("row-rename-group").addEventListener("click", async () => {
+document.getElementById("row-rename-group")?.addEventListener("click", async () => {
   try {
     const newName = (prompt(t("enter_group_name"), (groupDoc && groupDoc.name) || "") || "").trim();
     if (!newName) return;
@@ -642,7 +642,7 @@ document.getElementById("row-rename-group").addEventListener("click", async () =
   }
 });
 
-document.getElementById("row-change-passcode").addEventListener("click", async () => {
+document.getElementById("row-change-passcode")?.addEventListener("click", async () => {
   const code = randomPasscode();
   await updateDoc(doc(db, "groups", groupId), { passcode: code });
   showPasscodeModal(code);
@@ -678,7 +678,7 @@ function showPasscodeModal(code) {
   });
 }
 
-document.getElementById("row-manage-tasks").addEventListener("click", () => {
+document.getElementById("row-manage-tasks")?.addEventListener("click", () => {
   const list = customChores.map(c =>
     `<div class="admin-group-row"><b>${c.name}</b> · ${c.points}pts
       <button class="admin-small-btn" data-del="${c.id}">${t("delete")}</button></div>`
@@ -692,9 +692,9 @@ document.getElementById("row-manage-tasks").addEventListener("click", () => {
 });
 
 // admin entry from login screen
-document.getElementById("btn-admin-entry").addEventListener("click", () => showScreen("screen-admin-login"));
+document.getElementById("btn-admin-entry")?.addEventListener("click", () => showScreen("screen-admin-login"));
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => showScreen(b.dataset.back)));
-document.getElementById("btn-admin-login").addEventListener("click", () => {
+document.getElementById("btn-admin-login")?.addEventListener("click", () => {
   if (document.getElementById("input-admin-key").value === ADMIN_KEY) {
     isAdmin = true;
     showToast("OK");
@@ -704,7 +704,7 @@ document.getElementById("btn-admin-login").addEventListener("click", () => {
   }
 });
 
-document.getElementById("btn-admin-unlock").addEventListener("click", async () => {
+document.getElementById("btn-admin-unlock")?.addEventListener("click", async () => {
   if (document.getElementById("input-admin-key-2").value !== ADMIN_KEY) return showToast(t("err_admin_key"));
   isAdmin = true;
   document.getElementById("admin-locked").classList.add("hidden");
@@ -719,7 +719,7 @@ document.getElementById("btn-admin-unlock").addEventListener("click", async () =
   document.getElementById("admin-total-records").textContent = rCount.data().count;
 });
 
-document.getElementById("row-view-groups").addEventListener("click", async () => {
+document.getElementById("row-view-groups")?.addEventListener("click", async () => {
   const area = document.getElementById("admin-detail");
   area.innerHTML = `<h3>${t("view_all_groups")}</h3><p class="hint">…</p>`;
   const groupsSnap = await getDocs(collection(db, "groups"));
@@ -771,7 +771,7 @@ document.getElementById("row-view-groups").addEventListener("click", async () =>
   }));
 });
 
-document.getElementById("row-view-users").addEventListener("click", async () => {
+document.getElementById("row-view-users")?.addEventListener("click", async () => {
   const area = document.getElementById("admin-detail");
   const usersSnap = await getDocs(collection(db, "users"));
   const rows = usersSnap.docs.map(u => {
@@ -794,7 +794,7 @@ document.getElementById("row-view-users").addEventListener("click", async () => 
   }));
 });
 
-document.getElementById("row-view-records").addEventListener("click", async () => {
+document.getElementById("row-view-records")?.addEventListener("click", async () => {
   const area = document.getElementById("admin-detail");
   area.innerHTML = `<h3>${t("view_all_records")}</h3><p class="hint">…</p>`;
   try {
