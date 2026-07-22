@@ -60,6 +60,7 @@ const I18N = {
     err_passcode: "密码错误或小组已满", err_admin_key: "管理员密钥错误",
     attempts_left: "次机会", join_locked_out: "错误次数过多，请等待 {mins} 分钟后再试",
     group_created: "小组创建成功，密码：", passcode_changed: "新密码：",
+    err_group_name_taken: "这个小组名字已经被使用了，换一个吧",
     confirm_exit: "确定要退出小组吗？", confirm_dissolve: "确定要解散该小组吗？此操作不可撤销。",
     logged: "已记录", adjust_score: "调整积分", dissolve_group: "解散小组",
     name_label: "姓名", email_label: "邮箱", created_label: "注册时间",
@@ -93,6 +94,7 @@ const I18N = {
     err_passcode: "パスコードが違うか、グループが満員です", err_admin_key: "管理者キーが違います",
     attempts_left: "回試行可能", join_locked_out: "試行回数が多すぎます。{mins}分後にもう一度お試しください",
     group_created: "グループを作成しました。パスコード：", passcode_changed: "新しいパスコード：",
+    err_group_name_taken: "そのグループ名はすでに使われています。別の名前にしてください",
     confirm_exit: "グループを退出しますか？", confirm_dissolve: "このグループを解散しますか？元に戻せません。",
     logged: "記録しました", adjust_score: "スコアを調整", dissolve_group: "グループを解散",
     name_label: "名前", email_label: "メール", created_label: "登録日",
@@ -126,6 +128,7 @@ const I18N = {
     err_passcode: "Wrong passcode or group is full", err_admin_key: "Wrong admin key",
     attempts_left: "attempts left", join_locked_out: "Too many attempts. Try again in {mins} min",
     group_created: "Group created. Passcode: ", passcode_changed: "New passcode: ",
+    err_group_name_taken: "This group name is already taken. Please choose another.",
     confirm_exit: "Exit this group?", confirm_dissolve: "Dissolve this group? This can't be undone.",
     logged: "Logged", adjust_score: "Adjust score", dissolve_group: "Dissolve group",
     name_label: "Name", email_label: "Email", created_label: "Joined",
@@ -341,6 +344,13 @@ document.getElementById("btn-join")?.addEventListener("click", async () => {
 document.getElementById("btn-create")?.addEventListener("click", async () => {
   const code = randomPasscode();
   const groupName = (prompt(t("enter_group_name")) || "").trim() || t("default_group_name");
+
+  // reject duplicate group names
+  const dupSnap = await getDocs(query(collection(db, "groups"), where("name", "==", groupName)));
+  if (!dupSnap.empty) {
+    return showToast(t("err_group_name_taken"));
+  }
+
   const gref = await addDoc(collection(db, "groups"), {
     name: groupName,
     passcode: code,
@@ -670,6 +680,11 @@ document.getElementById("row-rename-group")?.addEventListener("click", async () 
   try {
     const newName = (prompt(t("enter_group_name"), (groupDoc && groupDoc.name) || "") || "").trim();
     if (!newName) return;
+    if (newName !== (groupDoc && groupDoc.name)) {
+      const dupSnap = await getDocs(query(collection(db, "groups"), where("name", "==", newName)));
+      const takenByOther = dupSnap.docs.some(d => d.id !== groupId);
+      if (takenByOther) return showToast(t("err_group_name_taken"));
+    }
     await updateDoc(doc(db, "groups", groupId), { name: newName });
     showToast(t("saved"));
   } catch (e) {
