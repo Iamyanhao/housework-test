@@ -49,6 +49,10 @@ h1, h2, h3 { font-family: 'Fraunces', serif; margin: 0 0 8px; letter-spacing: 0.
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; border: none; border-radius: 14px; padding: 14px 16px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .btn-google { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+.or-divider { text-align: center; color: var(--muted); font-size: 12px; margin: 14px 0; position: relative; }
+.or-divider::before, .or-divider::after { content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--line); }
+.or-divider::before { left: 0; }
+.or-divider::after { right: 0; }
 .btn-primary { background: var(--ink); color: #fff; margin-top: 14px; }
 .btn-primary:disabled { opacity: 0.4; }
 .btn-ghost { background: transparent; color: var(--muted); margin-top: 10px; }
