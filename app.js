@@ -58,6 +58,7 @@ const I18N = {
     cancel: "取消", save: "保存",
     already_done_by: "已由 {name} 完成", i_did: "我做的",
     err_passcode: "密码错误或小组已满", err_admin_key: "管理员密钥错误",
+    err_admin_kicked: "检测到有其他设备登录了管理员，此处已自动登出",
     attempts_left: "次机会", join_locked_out: "错误次数过多，请等待 {mins} 分钟后再试",
     group_created: "小组创建成功，密码：", passcode_changed: "新密码：",
     err_group_name_taken: "这个小组名字已经被使用了，换一个吧",
@@ -92,6 +93,7 @@ const I18N = {
     cancel: "キャンセル", save: "保存",
     already_done_by: "{name} が完了済み", i_did: "自分が完了",
     err_passcode: "パスコードが違うか、グループが満員です", err_admin_key: "管理者キーが違います",
+    err_admin_kicked: "他の端末で管理者ログインが行われたため、自動的にログアウトしました",
     attempts_left: "回試行可能", join_locked_out: "試行回数が多すぎます。{mins}分後にもう一度お試しください",
     group_created: "グループを作成しました。パスコード：", passcode_changed: "新しいパスコード：",
     err_group_name_taken: "そのグループ名はすでに使われています。別の名前にしてください",
@@ -126,6 +128,7 @@ const I18N = {
     cancel: "Cancel", save: "Save",
     already_done_by: "Already done by {name}", i_did: "Done by me",
     err_passcode: "Wrong passcode or group is full", err_admin_key: "Wrong admin key",
+    err_admin_kicked: "Another device just logged in as admin, so you've been logged out here.",
     attempts_left: "attempts left", join_locked_out: "Too many attempts. Try again in {mins} min",
     group_created: "Group created. Passcode: ", passcode_changed: "New passcode: ",
     err_group_name_taken: "This group name is already taken. Please choose another.",
@@ -204,6 +207,31 @@ let customChores = [];
 let records = [];
 let unsubGroup = null, unsubChores = null, unsubRecords = null;
 let isAdmin = false;
+let adminSessionId = null;
+let unsubAdminSession = null;
+
+// enforce a single active admin session across devices/tabs:
+// claiming writes a fresh session id to a shared doc; any other
+// tab/device currently in admin mode gets logged out when it
+// sees the session id change to something that isn't its own.
+async function claimAdminSession() {
+  adminSessionId = Date.now() + "-" + Math.random().toString(36).slice(2);
+  await setDoc(doc(db, "meta", "adminSession"), {
+    sessionId: adminSessionId, ts: serverTimestamp()
+  });
+  if (unsubAdminSession) unsubAdminSession();
+  unsubAdminSession = onSnapshot(doc(db, "meta", "adminSession"), (snap) => {
+    const remoteId = snap.data()?.sessionId;
+    if (isAdmin && remoteId && remoteId !== adminSessionId) {
+      isAdmin = false;
+      if (unsubAdminSession) { unsubAdminSession(); unsubAdminSession = null; }
+      document.getElementById("admin-unlocked")?.classList.add("hidden");
+      document.getElementById("admin-locked")?.classList.remove("hidden");
+      showScreen("screen-login");
+      showToast(t("err_admin_kicked"));
+    }
+  });
+}
 
 // ---------------------------------------------------------------
 // Auth
@@ -745,9 +773,10 @@ document.getElementById("row-manage-tasks")?.addEventListener("click", () => {
 // admin entry from login screen
 document.getElementById("btn-admin-entry")?.addEventListener("click", () => showScreen("screen-admin-login"));
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => showScreen(b.dataset.back)));
-document.getElementById("btn-admin-login")?.addEventListener("click", () => {
+document.getElementById("btn-admin-login")?.addEventListener("click", async () => {
   if (document.getElementById("input-admin-key").value === ADMIN_KEY) {
     isAdmin = true;
+    await claimAdminSession();
     showToast("OK");
     showScreen("screen-login");
   } else {
@@ -758,6 +787,7 @@ document.getElementById("btn-admin-login")?.addEventListener("click", () => {
 document.getElementById("btn-admin-unlock")?.addEventListener("click", async () => {
   if (document.getElementById("input-admin-key-2").value !== ADMIN_KEY) return showToast(t("err_admin_key"));
   isAdmin = true;
+  await claimAdminSession();
   document.getElementById("admin-locked").classList.add("hidden");
   document.getElementById("admin-unlocked").classList.remove("hidden");
   const [gCount, uCount, rCount] = await Promise.all([
@@ -813,12 +843,17 @@ document.getElementById("row-view-groups")?.addEventListener("click", async () =
   area.querySelectorAll("[data-dissolve]").forEach(btn => btn.addEventListener("click", async () => {
     if (!confirm(t("confirm_dissolve"))) return;
     const gid = btn.dataset.dissolve;
-    const gs = await getDoc(doc(db, "groups", gid));
-    for (const uid of (gs.data().memberUids || [])) {
-      await updateDoc(doc(db, "users", uid), { groupId: null });
+    try {
+      const gs = await getDoc(doc(db, "groups", gid));
+      for (const uid of (gs.data().memberUids || [])) {
+        await updateDoc(doc(db, "users", uid), { groupId: null });
+      }
+      await deleteDoc(doc(db, "groups", gid));
+      document.getElementById("row-view-groups").click();
+    } catch (e) {
+      showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
+      console.error(e);
     }
-    await deleteDoc(doc(db, "groups", gid));
-    document.getElementById("row-view-groups").click();
   }));
 });
 
