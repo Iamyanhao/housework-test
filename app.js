@@ -839,12 +839,19 @@ document.getElementById("row-view-records")?.addEventListener("click", async () 
   const area = document.getElementById("admin-detail");
   area.innerHTML = `<h3>${t("view_all_records")}</h3><p class="hint">…</p>`;
   try {
-    const recSnap = await getDocs(query(collection(db, "records"), orderBy("timestamp", "desc"), limit(100)));
+    const [recSnap, groupsSnap] = await Promise.all([
+      getDocs(query(collection(db, "records"), orderBy("timestamp", "desc"), limit(100))),
+      getDocs(collection(db, "groups"))
+    ]);
+    const groupNameById = {};
+    groupsSnap.docs.forEach(g => { groupNameById[g.id] = g.data().name || g.id; });
+
     const rows = recSnap.docs.map(d => {
       const r = { id: d.id, ...d.data() };
+      const groupLabel = groupNameById[r.groupId] || r.groupId || "-";
       return `
         <div class="admin-group-row">
-          <div>${r.date} · ${r.userName || r.uid} · <b>${r.choreName}</b> · ${r.points}pts</div>
+          <div>${r.date} · <span style="color:var(--muted);">[${groupLabel}]</span> · ${r.userName || r.uid} · <b>${r.choreName}</b> · ${r.points}pts</div>
           <div class="row-actions">
             <button class="admin-small-btn" data-admin-edit="${r.id}">${t("edit")}</button>
             <button class="admin-small-btn" data-admin-del="${r.id}">${t("delete")}</button>
