@@ -58,6 +58,7 @@ const I18N = {
     cancel: "取消", save: "保存",
     already_done_by: "已由 {name} 完成", i_did: "我做的",
     err_passcode: "密码错误或小组已满", err_admin_key: "管理员密钥错误",
+    attempts_left: "次机会", join_locked_out: "错误次数过多，请等待 {mins} 分钟后再试",
     group_created: "小组创建成功，密码：", passcode_changed: "新密码：",
     confirm_exit: "确定要退出小组吗？", confirm_dissolve: "确定要解散该小组吗？此操作不可撤销。",
     logged: "已记录", adjust_score: "调整积分", dissolve_group: "解散小组",
@@ -90,6 +91,7 @@ const I18N = {
     cancel: "キャンセル", save: "保存",
     already_done_by: "{name} が完了済み", i_did: "自分が完了",
     err_passcode: "パスコードが違うか、グループが満員です", err_admin_key: "管理者キーが違います",
+    attempts_left: "回試行可能", join_locked_out: "試行回数が多すぎます。{mins}分後にもう一度お試しください",
     group_created: "グループを作成しました。パスコード：", passcode_changed: "新しいパスコード：",
     confirm_exit: "グループを退出しますか？", confirm_dissolve: "このグループを解散しますか？元に戻せません。",
     logged: "記録しました", adjust_score: "スコアを調整", dissolve_group: "グループを解散",
@@ -122,6 +124,7 @@ const I18N = {
     cancel: "Cancel", save: "Save",
     already_done_by: "Already done by {name}", i_did: "Done by me",
     err_passcode: "Wrong passcode or group is full", err_admin_key: "Wrong admin key",
+    attempts_left: "attempts left", join_locked_out: "Too many attempts. Try again in {mins} min",
     group_created: "Group created. Passcode: ", passcode_changed: "New passcode: ",
     confirm_exit: "Exit this group?", confirm_dissolve: "Dissolve this group? This can't be undone.",
     logged: "Logged", adjust_score: "Adjust score", dissolve_group: "Dissolve group",
@@ -289,13 +292,46 @@ document.querySelectorAll(".tab-btn").forEach(b => b.addEventListener("click", (
   document.getElementById("tab-" + b.dataset.tab).classList.add("active");
 }));
 
+const JOIN_LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
+function getJoinAttempts() {
+  return Number(localStorage.getItem("jiawu_join_fails") || 0);
+}
+function setJoinAttempts(n) {
+  localStorage.setItem("jiawu_join_fails", String(n));
+}
+function getLockoutUntil() {
+  return Number(localStorage.getItem("jiawu_join_lockout_until") || 0);
+}
+function setLockoutUntil(ts) {
+  localStorage.setItem("jiawu_join_lockout_until", String(ts));
+}
+function joinLockoutRemainingMs() {
+  return getLockoutUntil() - Date.now();
+}
+
 document.getElementById("btn-join")?.addEventListener("click", async () => {
+  const remaining = joinLockoutRemainingMs();
+  if (remaining > 0) {
+    const mins = Math.ceil(remaining / 60000);
+    return showToast(t("join_locked_out", { mins }));
+  }
   const code = document.getElementById("input-passcode").value.trim();
   if (code.length !== 5) return showToast(t("err_passcode"));
   const snap = await getDocs(query(collection(db, "groups"), where("passcode", "==", code)));
   let target = null;
   snap.forEach(d => { if (!target) target = { id: d.id, ...d.data() }; });
-  if (!target || (target.memberUids || []).length >= 2) return showToast(t("err_passcode"));
+  if (!target || (target.memberUids || []).length >= 2) {
+    const fails = getJoinAttempts() + 1;
+    setJoinAttempts(fails);
+    if (fails >= 3) {
+      setLockoutUntil(Date.now() + JOIN_LOCKOUT_MS);
+      setJoinAttempts(0);
+      return showToast(t("join_locked_out", { mins: Math.ceil(JOIN_LOCKOUT_MS / 60000) }));
+    }
+    return showToast(t("err_passcode") + ` (${3 - fails} ${t("attempts_left")})`);
+  }
+  setJoinAttempts(0);
+  setLockoutUntil(0);
   await updateDoc(doc(db, "groups", target.id), { memberUids: arrayUnion(currentUser.uid) });
   await updateDoc(doc(db, "users", currentUser.uid), { groupId: target.id });
   groupId = target.id;
