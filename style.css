@@ -79,6 +79,7 @@ h1, h2, h3 { font-family: 'Fraunces', serif; margin: 0 0 8px; letter-spacing: 0.
 .app-header { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 4px 18px; }
 .app-header-title { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; }
 .app-header-meta { text-align: right; font-size: 11px; color: var(--muted); display: flex; flex-direction: column; }
+.header-email { font-size: 10px; opacity: 0.75; }
 
 .tab-view { display: none; }
 .tab-view.active { display: block; }
