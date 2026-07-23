@@ -121,26 +121,17 @@
   <!-- ---- STATISTICS ---- -->
   <div id="tab-stats-view" class="tab-view">
     <div class="card">
-      <h3 data-i18n="monthly_trends">月度趋势</h3>
+      <h3 data-i18n="monthly_trends">统计趋势</h3>
       <div class="legend-item small"><span class="dot dot-a"></span><span data-i18n="you">你</span></div>
       <div class="legend-item small"><span class="dot dot-b"></span><span id="stats-partner-name">-</span></div>
-      <div class="stats-mode-tabs">
-        <button class="stats-mode-btn active" data-mode="month" data-i18n="mode_month">按月</button>
-        <button class="stats-mode-btn" data-mode="year" data-i18n="mode_year">按年</button>
-        <button class="stats-mode-btn" data-mode="custom" data-i18n="mode_custom">自定义区间</button>
-      </div>
       <svg id="trend-svg" viewBox="0 0 300 140" class="trend-svg"></svg>
-      <select id="month-select" class="month-select"></select>
-      <select id="year-select" class="month-select hidden"></select>
-      <div id="custom-range-block" class="hidden">
-        <div class="range-row">
-          <input type="date" id="range-start" class="text-input">
-          <span data-i18n="range_to">至</span>
-          <input type="date" id="range-end" class="text-input">
-        </div>
-        <button id="btn-apply-range" class="btn btn-primary" data-i18n="btn_apply_range">计算</button>
+      <div class="range-row">
+        <input type="date" id="range-start" class="text-input">
+        <span data-i18n="range_to">至</span>
+        <input type="date" id="range-end" class="text-input">
       </div>
-      <div id="range-summary" class="range-summary hidden"></div>
+      <button id="btn-apply-range" class="btn btn-primary" data-i18n="btn_apply_range">计算</button>
+      <div id="range-summary" class="range-summary"></div>
     </div>
     <div class="card">
       <h3 data-i18n="recent_logs">最近记录</h3>
