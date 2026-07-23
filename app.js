@@ -563,6 +563,15 @@ document.getElementById("btn-apply-range")?.addEventListener("click", renderStat
 
 function renderStats() {
   if (!groupDoc) return;
+  try {
+    _renderStatsInner();
+  } catch (e) {
+    showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
+    console.error(e);
+  }
+}
+
+function _renderStatsInner() {
   const pUid = partnerUid();
   initDefaultRange();
 
