@@ -68,6 +68,7 @@ const I18N = {
     name_label: "姓名", email_label: "邮箱", created_label: "注册时间",
     last_login_label: "最后登录", login_count_label: "登录次数",
     delete: "删除", saved: "已保存",
+    restore: "恢复", default_chore_tag: "默认",
     edit: "编辑", edit_record_title: "编辑家务记录", confirm_delete_record: "确定要删除这条记录吗？对方看板上的锁定状态也会一起解除。"
   },
   ja: {
@@ -104,6 +105,7 @@ const I18N = {
     name_label: "名前", email_label: "メール", created_label: "登録日",
     last_login_label: "最終ログイン", login_count_label: "ログイン回数",
     delete: "削除", saved: "保存しました",
+    restore: "復元", default_chore_tag: "デフォルト",
     edit: "編集", edit_record_title: "記録を編集", confirm_delete_record: "この記録を削除しますか？相手の画面のロックも解除されます。"
   },
   en: {
@@ -140,6 +142,7 @@ const I18N = {
     name_label: "Name", email_label: "Email", created_label: "Joined",
     last_login_label: "Last login", login_count_label: "Login count",
     delete: "Delete", saved: "Saved",
+    restore: "Restore", default_chore_tag: "default",
     edit: "Edit", edit_record_title: "Edit chore record", confirm_delete_record: "Delete this record? It will also unlock the chore tile on your partner's screen."
   }
 };
@@ -483,8 +486,9 @@ function weekRange() {
 }
 
 function allChores() {
+  const hidden = (groupDoc && groupDoc.hiddenDefaultChoreIds) || [];
   return [
-    ...DEFAULT_CHORES.map(c => ({ ...c, custom: false })),
+    ...DEFAULT_CHORES.filter(c => !hidden.includes(c.id)).map(c => ({ ...c, custom: false })),
     ...customChores.map(c => ({ id: c.id, points: c.points, name: { zh: c.name, ja: c.name, en: c.name }, custom: true }))
   ];
 }
@@ -798,15 +802,34 @@ function showPasscodeModal(code) {
 }
 
 document.getElementById("row-manage-tasks")?.addEventListener("click", () => {
-  const list = customChores.map(c =>
+  const hidden = (groupDoc && groupDoc.hiddenDefaultChoreIds) || [];
+  const defaultRows = DEFAULT_CHORES.map(c => {
+    const name = c.name[lang] || c.name.zh;
+    const isHidden = hidden.includes(c.id);
+    const actionBtn = isHidden
+      ? `<button class="admin-small-btn" data-restore="${c.id}">${t("restore")}</button>`
+      : `<button class="admin-small-btn" data-hide="${c.id}">${t("delete")}</button>`;
+    return `<div class="admin-group-row"${isHidden ? ' style="opacity:.5;"' : ""}><b>${name}</b> · ${c.points}pts <span class="hint">(${t("default_chore_tag")})</span>
+      ${actionBtn}</div>`;
+  }).join("");
+  const customRows = customChores.map(c =>
     `<div class="admin-group-row"><b>${c.name}</b> · ${c.points}pts
       <button class="admin-small-btn" data-del="${c.id}">${t("delete")}</button></div>`
-  ).join("") || `<p class="hint">—</p>`;
+  ).join("");
   const area = document.getElementById("manage-tasks-detail");
   area.classList.remove("hidden");
-  area.innerHTML = `<h3>${t("manage_tasks")}</h3>${list}`;
+  area.innerHTML = `<h3>${t("manage_tasks")}</h3>${defaultRows}${customRows || `<p class="hint">—</p>`}`;
   area.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", async () => {
     await deleteDoc(doc(db, "groups", groupId, "chores", btn.dataset.del));
+    document.getElementById("row-manage-tasks").click();
+  }));
+  area.querySelectorAll("[data-hide]").forEach(btn => btn.addEventListener("click", async () => {
+    await updateDoc(doc(db, "groups", groupId), { hiddenDefaultChoreIds: arrayUnion(btn.dataset.hide) });
+    document.getElementById("row-manage-tasks").click();
+  }));
+  area.querySelectorAll("[data-restore]").forEach(btn => btn.addEventListener("click", async () => {
+    await updateDoc(doc(db, "groups", groupId), { hiddenDefaultChoreIds: arrayRemove(btn.dataset.restore) });
+    document.getElementById("row-manage-tasks").click();
   }));
 });
 
