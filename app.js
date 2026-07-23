@@ -70,7 +70,8 @@ const I18N = {
     last_login_label: "最后登录", login_count_label: "登录次数",
     delete: "删除", saved: "已保存",
     restore: "恢复", default_chore_tag: "默认",
-    members_word: "人", remove_member: "移除", confirm_remove_member: "确定要把这个人从小组移除吗？",
+    members_word: "人", remove_member: "移除", confirm_remove_member: "确定要把这个人从小组移除吗？Ta 在这个小组里的所有记录也会被一起删除。",
+    records_deleted_suffix: "条记录已删除",
     edit: "编辑", edit_record_title: "编辑家务记录", confirm_delete_record: "确定要删除这条记录吗？对方看板上的锁定状态也会一起解除。"
   },
   ja: {
@@ -108,7 +109,8 @@ const I18N = {
     last_login_label: "最終ログイン", login_count_label: "ログイン回数",
     delete: "削除", saved: "保存しました",
     restore: "復元", default_chore_tag: "デフォルト",
-    members_word: "人", remove_member: "削除", confirm_remove_member: "このメンバーをグループから削除しますか？",
+    members_word: "人", remove_member: "削除", confirm_remove_member: "このメンバーをグループから削除しますか？このグループでのこの人の記録もすべて削除されます。",
+    records_deleted_suffix: "件の記録を削除しました",
     edit: "編集", edit_record_title: "記録を編集", confirm_delete_record: "この記録を削除しますか？相手の画面のロックも解除されます。"
   },
   en: {
@@ -146,7 +148,8 @@ const I18N = {
     last_login_label: "Last login", login_count_label: "Login count",
     delete: "Delete", saved: "Saved",
     restore: "Restore", default_chore_tag: "default",
-    members_word: "members", remove_member: "Remove", confirm_remove_member: "Remove this person from the group?",
+    members_word: "members", remove_member: "Remove", confirm_remove_member: "Remove this person from the group? All their records in this group will also be deleted.",
+    records_deleted_suffix: "records deleted",
     edit: "Edit", edit_record_title: "Edit chore record", confirm_delete_record: "Delete this record? It will also unlock the chore tile on your partner's screen."
   }
 };
@@ -936,7 +939,15 @@ document.getElementById("row-view-groups")?.addEventListener("click", async () =
     try {
       await updateDoc(doc(db, "groups", gid), { memberUids: arrayRemove(uid) });
       await updateDoc(doc(db, "users", uid), { groupId: null });
-      showToast(t("saved"));
+
+      const recSnap = await getDocs(query(
+        collection(db, "records"),
+        where("groupId", "==", gid),
+        where("uid", "==", uid)
+      ));
+      await Promise.all(recSnap.docs.map(d => deleteDoc(doc(db, "records", d.id))));
+
+      showToast(t("saved") + ` (${recSnap.size} ${t("records_deleted_suffix")})`);
       document.getElementById("row-view-groups").click();
     } catch (e) {
       showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
