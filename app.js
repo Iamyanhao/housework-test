@@ -11,7 +11,8 @@ import {
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
   collection, query, where, orderBy, limit, onSnapshot, getDocs,
-  serverTimestamp, increment, arrayUnion, arrayRemove, getCountFromServer
+  serverTimestamp, increment, arrayUnion, arrayRemove, getCountFromServer,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const ADMIN_KEY = "jiawu-admin-2026"; // TODO: change this before real use
@@ -69,6 +70,7 @@ const I18N = {
     last_login_label: "最后登录", login_count_label: "登录次数",
     delete: "删除", saved: "已保存",
     restore: "恢复", default_chore_tag: "默认",
+    members_word: "人", remove_member: "移除", confirm_remove_member: "确定要把这个人从小组移除吗？",
     edit: "编辑", edit_record_title: "编辑家务记录", confirm_delete_record: "确定要删除这条记录吗？对方看板上的锁定状态也会一起解除。"
   },
   ja: {
@@ -106,6 +108,7 @@ const I18N = {
     last_login_label: "最終ログイン", login_count_label: "ログイン回数",
     delete: "削除", saved: "保存しました",
     restore: "復元", default_chore_tag: "デフォルト",
+    members_word: "人", remove_member: "削除", confirm_remove_member: "このメンバーをグループから削除しますか？",
     edit: "編集", edit_record_title: "記録を編集", confirm_delete_record: "この記録を削除しますか？相手の画面のロックも解除されます。"
   },
   en: {
@@ -143,10 +146,11 @@ const I18N = {
     last_login_label: "Last login", login_count_label: "Login count",
     delete: "Delete", saved: "Saved",
     restore: "Restore", default_chore_tag: "default",
+    members_word: "members", remove_member: "Remove", confirm_remove_member: "Remove this person from the group?",
     edit: "Edit", edit_record_title: "Edit chore record", confirm_delete_record: "Delete this record? It will also unlock the chore tile on your partner's screen."
   }
 };
-let lang = localStorage.getItem("jiawu_lang") || "zh";
+let lang = localStorage.getItem("jiawu_lang") || "ja";
 
 function t(key, vars) {
   let s = (I18N[lang] && I18N[lang][key]) || key;
@@ -354,25 +358,51 @@ document.getElementById("btn-join")?.addEventListener("click", async () => {
   const code = document.getElementById("input-passcode").value.trim();
   if (code.length !== 5) return showToast(t("err_passcode"));
   const snap = await getDocs(query(collection(db, "groups"), where("passcode", "==", code)));
-  let target = null;
-  snap.forEach(d => { if (!target) target = { id: d.id, ...d.data() }; });
-  if (!target || (target.memberUids || []).length >= 2) {
-    const fails = getJoinAttempts() + 1;
-    setJoinAttempts(fails);
-    if (fails >= 3) {
-      setLockoutUntil(Date.now() + JOIN_LOCKOUT_MS);
-      setJoinAttempts(0);
-      return showToast(t("join_locked_out", { mins: Math.ceil(JOIN_LOCKOUT_MS / 60000) }));
-    }
-    return showToast(t("err_passcode") + ` (${3 - fails} ${t("attempts_left")})`);
+  let targetId = null;
+  snap.forEach(d => { if (!targetId) targetId = d.id; });
+
+  if (!targetId) {
+    return recordJoinFailure();
   }
+
+  try {
+    // Atomic check-and-add: read + write in one transaction so two people
+    // clicking "join" at the same instant can't both slip past the 2-person cap.
+    await runTransaction(db, async (tx) => {
+      const gref = doc(db, "groups", targetId);
+      const gsnap = await tx.get(gref);
+      if (!gsnap.exists()) throw new Error("group-vanished");
+      const members = gsnap.data().memberUids || [];
+      if (members.includes(currentUser.uid)) return; // already a member, no-op
+      if (members.length >= 2) throw new Error("group-full");
+      tx.update(gref, { memberUids: [...members, currentUser.uid] });
+    });
+  } catch (e) {
+    if (e.message === "group-full" || e.message === "group-vanished") {
+      return recordJoinFailure();
+    }
+    showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
+    console.error(e);
+    return;
+  }
+
   setJoinAttempts(0);
   setLockoutUntil(0);
-  await updateDoc(doc(db, "groups", target.id), { memberUids: arrayUnion(currentUser.uid) });
-  await updateDoc(doc(db, "users", currentUser.uid), { groupId: target.id });
-  groupId = target.id;
+  await updateDoc(doc(db, "users", currentUser.uid), { groupId: targetId });
+  groupId = targetId;
   await enterApp();
 });
+
+function recordJoinFailure() {
+  const fails = getJoinAttempts() + 1;
+  setJoinAttempts(fails);
+  if (fails >= 3) {
+    setLockoutUntil(Date.now() + JOIN_LOCKOUT_MS);
+    setJoinAttempts(0);
+    return showToast(t("join_locked_out", { mins: Math.ceil(JOIN_LOCKOUT_MS / 60000) }));
+  }
+  return showToast(t("err_passcode") + ` (${3 - fails} ${t("attempts_left")})`);
+}
 
 document.getElementById("btn-create")?.addEventListener("click", async () => {
   const code = randomPasscode();
@@ -884,8 +914,10 @@ document.getElementById("row-view-groups")?.addEventListener("click", async () =
     }
     rows.push(`
       <div class="admin-group-row">
-        <b>${gd.name}</b> · ${gd.passcode}
-        <div>${memberNames.map(m => m.name).join(" & ") || "—"}</div>
+        <b>${gd.name}</b> · ${gd.passcode} ${memberNames.length > 2 ? `<span style="color:var(--a);font-weight:700;">(${memberNames.length} ${t("members_word")})</span>` : ""}
+        <div>
+          ${memberNames.map(m => `${m.name} <button class="admin-small-btn" data-remove-member="${gd.id}" data-remove-uid="${m.uid}">${t("remove_member")}</button>`).join(" &nbsp; ") || "—"}
+        </div>
         <div class="row-actions">
           <select data-adjust-uid="${gd.id}">
             ${memberNames.map(m => `<option value="${m.uid}">${m.name}</option>`).join("")}
@@ -897,6 +929,20 @@ document.getElementById("row-view-groups")?.addEventListener("click", async () =
       </div>`);
   }
   area.innerHTML = `<h3>${t("view_all_groups")}</h3>` + rows.join("");
+  area.querySelectorAll("[data-remove-member]").forEach(btn => btn.addEventListener("click", async () => {
+    if (!confirm(t("confirm_remove_member"))) return;
+    const gid = btn.dataset.removeMember;
+    const uid = btn.dataset.removeUid;
+    try {
+      await updateDoc(doc(db, "groups", gid), { memberUids: arrayRemove(uid) });
+      await updateDoc(doc(db, "users", uid), { groupId: null });
+      showToast(t("saved"));
+      document.getElementById("row-view-groups").click();
+    } catch (e) {
+      showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
+      console.error(e);
+    }
+  }));
   area.querySelectorAll("[data-adjust-go]").forEach(btn => btn.addEventListener("click", async () => {
     const gid = btn.dataset.adjustGo;
     const uidSel = area.querySelector(`[data-adjust-uid="${gid}"]`);
