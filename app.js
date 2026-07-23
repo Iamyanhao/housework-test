@@ -437,7 +437,8 @@ async function cleanupListeners() {
 
 async function enterApp() {
   showScreen("app-shell");
-  document.getElementById("header-user-name").textContent = (userDoc.name || "").toUpperCase();
+  document.getElementById("header-user-name").textContent = ((userDoc.name || userDoc.email || "?").toUpperCase());
+  document.getElementById("header-user-email").textContent = userDoc.email || "—";
 
   unsubGroup = onSnapshot(doc(db, "groups", groupId), (snap) => {
     groupDoc = { id: snap.id, ...snap.data() };
