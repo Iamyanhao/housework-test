@@ -913,7 +913,9 @@ document.getElementById("row-view-groups")?.addEventListener("click", async () =
     const memberNames = [];
     for (const uid of gd.memberUids || []) {
       const us = await getDoc(doc(db, "users", uid));
-      memberNames.push({ uid, name: us.exists() ? us.data().name : uid });
+      const ud = us.exists() ? us.data() : null;
+      const label = ud ? (ud.name || ud.email || uid) : uid;
+      memberNames.push({ uid, name: label });
     }
     rows.push(`
       <div class="admin-group-row">
