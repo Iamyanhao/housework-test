@@ -59,7 +59,7 @@ const I18N = {
     already_done_by: "已由 {name} 完成", i_did: "我做的",
     err_passcode: "密码错误或小组已满", err_admin_key: "管理员密钥错误",
     attempts_left: "次机会", join_locked_out: "错误次数过多，请等待 {mins} 分钟后再试",
-    admin_kicked: "检测到其他设备登录了管理员模式，本次会话已退出",
+    admin_kicked: "检测到其他设备登录了管理员模式，本次会话已退出", enter_valid_points: "请输入一个非零的分数",
     group_created: "小组创建成功，密码：", passcode_changed: "新密码：",
     confirm_exit: "确定要退出小组吗？", confirm_dissolve: "确定要解散该小组吗？此操作不可撤销。",
     logged: "已记录", adjust_score: "调整积分", dissolve_group: "解散小组",
@@ -93,7 +93,7 @@ const I18N = {
     already_done_by: "{name} が完了済み", i_did: "自分が完了",
     err_passcode: "パスコードが違うか、グループが満員です", err_admin_key: "管理者キーが違います",
     attempts_left: "回試行可能", join_locked_out: "試行回数が多すぎます。{mins}分後にもう一度お試しください",
-    admin_kicked: "他の端末で管理者モードにログインされたため、このセッションは終了しました",
+    admin_kicked: "他の端末で管理者モードにログインされたため、このセッションは終了しました", enter_valid_points: "0以外の数値を入力してください",
     group_created: "グループを作成しました。パスコード：", passcode_changed: "新しいパスコード：",
     confirm_exit: "グループを退出しますか？", confirm_dissolve: "このグループを解散しますか？元に戻せません。",
     logged: "記録しました", adjust_score: "スコアを調整", dissolve_group: "グループを解散",
@@ -127,7 +127,7 @@ const I18N = {
     already_done_by: "Already done by {name}", i_did: "Done by me",
     err_passcode: "Wrong passcode or group is full", err_admin_key: "Wrong admin key",
     attempts_left: "attempts left", join_locked_out: "Too many attempts. Try again in {mins} min",
-    admin_kicked: "Another device signed into admin mode — this session was logged out",
+    admin_kicked: "Another device signed into admin mode — this session was logged out", enter_valid_points: "Please enter a non-zero number",
     group_created: "Group created. Passcode: ", passcode_changed: "New passcode: ",
     confirm_exit: "Exit this group?", confirm_dissolve: "Dissolve this group? This can't be undone.",
     logged: "Logged", adjust_score: "Adjust score", dissolve_group: "Dissolve group",
@@ -823,13 +823,20 @@ document.getElementById("row-view-groups")?.addEventListener("click", async () =
     const uidSel = area.querySelector(`[data-adjust-uid="${gid}"]`);
     const ptsInput = area.querySelector(`[data-adjust-pts="${gid}"]`);
     const pts = Number(ptsInput.value);
-    if (!pts) return;
-    await addDoc(collection(db, "records"), {
-      groupId: gid, uid: uidSel.value, userName: uidSel.selectedOptions[0].textContent,
-      choreId: "admin_adjust", choreName: "Admin adjustment", points: pts,
-      date: todayStr(), timestamp: serverTimestamp()
-    });
-    showToast(t("saved"));
+    if (!ptsInput.value || Number.isNaN(pts) || pts === 0) {
+      return showToast(t("enter_valid_points"));
+    }
+    try {
+      await addDoc(collection(db, "records"), {
+        groupId: gid, uid: uidSel.value, userName: uidSel.selectedOptions[0].textContent,
+        choreId: "admin_adjust", choreName: "Admin adjustment", points: pts,
+        date: todayStr(), timestamp: serverTimestamp()
+      });
+      showToast(t("saved"));
+    } catch (e) {
+      showToast("错误 / Error: " + (e.code || "") + " — " + e.message);
+      console.error(e);
+    }
   }));
   area.querySelectorAll("[data-dissolve]").forEach(btn => btn.addEventListener("click", async () => {
     if (!confirm(t("confirm_dissolve"))) return;
