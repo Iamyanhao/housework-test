@@ -548,120 +548,71 @@ document.getElementById("custom-save")?.addEventListener("click", async () => {
 // ---------------------------------------------------------------
 // Statistics
 // ---------------------------------------------------------------
-function monthKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
 function dayKey(d) { return d.toISOString().slice(0, 10); }
 
-let statsMode = "month"; // "month" | "year" | "custom"
-
-document.querySelectorAll(".stats-mode-btn").forEach(b => b.addEventListener("click", () => {
-  document.querySelectorAll(".stats-mode-btn").forEach(x => x.classList.remove("active"));
-  b.classList.add("active");
-  statsMode = b.dataset.mode;
-  document.getElementById("month-select").classList.toggle("hidden", statsMode !== "month");
-  document.getElementById("year-select").classList.toggle("hidden", statsMode !== "year");
-  document.getElementById("custom-range-block").classList.toggle("hidden", statsMode !== "custom");
-  document.getElementById("range-summary").classList.toggle("hidden", statsMode !== "custom");
-  renderStats();
-}));
-
-function populateMonthSelect() {
-  const sel = document.getElementById("month-select");
-  const months = new Set([monthKey(new Date())]);
-  records.forEach(r => months.add(monthKey(r.jsDate)));
-  const sorted = Array.from(months).sort().reverse();
-  const prevVal = sel.value;
-  sel.innerHTML = sorted.map(m => `<option value="${m}">${m}</option>`).join("");
-  sel.value = sorted.includes(prevVal) ? prevVal : sorted[0];
+let rangeInitialized = false;
+function initDefaultRange() {
+  if (rangeInitialized) return;
+  rangeInitialized = true;
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  document.getElementById("range-start").value = dayKey(first);
+  document.getElementById("range-end").value = dayKey(now);
 }
-document.getElementById("month-select")?.addEventListener("change", renderStats);
-
-function populateYearSelect() {
-  const sel = document.getElementById("year-select");
-  const years = new Set([new Date().getFullYear()]);
-  records.forEach(r => years.add(r.jsDate.getFullYear()));
-  const sorted = Array.from(years).sort().reverse();
-  const prevVal = sel.value;
-  sel.innerHTML = sorted.map(y => `<option value="${y}">${y}</option>`).join("");
-  sel.value = sorted.includes(Number(prevVal)) ? prevVal : String(sorted[0]);
-}
-document.getElementById("year-select")?.addEventListener("change", renderStats);
 document.getElementById("btn-apply-range")?.addEventListener("click", renderStats);
 
 function renderStats() {
   if (!groupDoc) return;
   const pUid = partnerUid();
-  updateLogTable(records.slice(0, 20));
+  initDefaultRange();
 
-  if (statsMode === "month") {
-    populateMonthSelect();
-    const selMonth = document.getElementById("month-select").value;
-    const monthRecords = records.filter(r => monthKey(r.jsDate) === selMonth);
-    const a = [0, 0, 0, 0, 0], b = [0, 0, 0, 0, 0];
-    monthRecords.forEach(r => {
-      const wk = Math.min(4, Math.floor((r.jsDate.getDate() - 1) / 7));
-      if (r.uid === currentUser.uid) a[wk] += r.points;
-      else if (r.uid === pUid) b[wk] += r.points;
-    });
-    drawTrend(a, b);
-  } else if (statsMode === "year") {
-    populateYearSelect();
-    const selYear = Number(document.getElementById("year-select").value);
-    const yearRecords = records.filter(r => r.jsDate.getFullYear() === selYear);
-    const a = new Array(12).fill(0), b = new Array(12).fill(0);
-    yearRecords.forEach(r => {
-      const m = r.jsDate.getMonth();
-      if (r.uid === currentUser.uid) a[m] += r.points;
-      else if (r.uid === pUid) b[m] += r.points;
-    });
-    drawTrend(a, b);
-  } else if (statsMode === "custom") {
-    const startVal = document.getElementById("range-start").value;
-    const endVal = document.getElementById("range-end").value;
-    const summaryEl = document.getElementById("range-summary");
-    if (!startVal || !endVal) {
-      summaryEl.innerHTML = `<p class="hint">${t("pick_range_hint")}</p>`;
-      drawTrend([0], [0]);
-      return;
-    }
-    const start = new Date(startVal + "T00:00:00");
-    const end = new Date(endVal + "T23:59:59");
-    const rangeRecords = records.filter(r => r.jsDate >= start && r.jsDate <= end);
-    updateLogTable(rangeRecords.slice(0, 50));
+  const startVal = document.getElementById("range-start").value;
+  const endVal = document.getElementById("range-end").value;
+  const summaryEl = document.getElementById("range-summary");
+  if (!startVal || !endVal) {
+    summaryEl.innerHTML = `<p class="hint">${t("pick_range_hint")}</p>`;
+    drawTrend([0], [0]);
+    updateLogTable(records.slice(0, 20));
+    return;
+  }
+  const start = new Date(startVal + "T00:00:00");
+  const end = new Date(endVal + "T23:59:59");
+  const rangeRecords = records.filter(r => r.jsDate >= start && r.jsDate <= end);
+  updateLogTable(rangeRecords.slice(0, 50));
 
-    let myTotal = 0, partnerTotal = 0;
+  let myTotal = 0, partnerTotal = 0;
+  rangeRecords.forEach(r => {
+    if (r.uid === currentUser.uid) myTotal += r.points;
+    else if (r.uid === pUid) partnerTotal += r.points;
+  });
+  summaryEl.innerHTML = `
+    <div class="legend-item"><span class="dot dot-a"></span>${t("you")}<b>${myTotal}pts</b></div>
+    <div class="legend-item"><span class="dot dot-b"></span>${document.getElementById("stats-partner-name").textContent}<b>${partnerTotal}pts</b></div>`;
+
+  // bucket by day if range is short, otherwise by week
+  const dayMs = 86400000;
+  const spanDays = Math.max(1, Math.round((end - start) / dayMs) + 1);
+  if (spanDays <= 31) {
+    const a = new Array(spanDays).fill(0), b = new Array(spanDays).fill(0);
     rangeRecords.forEach(r => {
-      if (r.uid === currentUser.uid) myTotal += r.points;
-      else if (r.uid === pUid) partnerTotal += r.points;
+      const idx = Math.floor((r.jsDate - start) / dayMs);
+      if (idx >= 0 && idx < spanDays) {
+        if (r.uid === currentUser.uid) a[idx] += r.points;
+        else if (r.uid === pUid) b[idx] += r.points;
+      }
     });
-    summaryEl.innerHTML = `
-      <div class="legend-item"><span class="dot dot-a"></span>${t("you")}<b>${myTotal}pts</b></div>
-      <div class="legend-item"><span class="dot dot-b"></span>${document.getElementById("stats-partner-name").textContent}<b>${partnerTotal}pts</b></div>`;
-
-    // bucket by day if range is short, otherwise by week
-    const dayMs = 86400000;
-    const spanDays = Math.max(1, Math.round((end - start) / dayMs) + 1);
-    if (spanDays <= 31) {
-      const a = new Array(spanDays).fill(0), b = new Array(spanDays).fill(0);
-      rangeRecords.forEach(r => {
-        const idx = Math.floor((r.jsDate - start) / dayMs);
-        if (idx >= 0 && idx < spanDays) {
-          if (r.uid === currentUser.uid) a[idx] += r.points;
-          else if (r.uid === pUid) b[idx] += r.points;
-        }
-      });
-      drawTrend(a, b);
-    } else {
-      const numWeeks = Math.ceil(spanDays / 7);
-      const a = new Array(numWeeks).fill(0), b = new Array(numWeeks).fill(0);
-      rangeRecords.forEach(r => {
-        const idx = Math.floor((r.jsDate - start) / dayMs / 7);
-        if (idx >= 0 && idx < numWeeks) {
-          if (r.uid === currentUser.uid) a[idx] += r.points;
-          else if (r.uid === pUid) b[idx] += r.points;
-        }
-      });
-      drawTrend(a, b);
-    }
+    drawTrend(a, b);
+  } else {
+    const numWeeks = Math.ceil(spanDays / 7);
+    const a = new Array(numWeeks).fill(0), b = new Array(numWeeks).fill(0);
+    rangeRecords.forEach(r => {
+      const idx = Math.floor((r.jsDate - start) / dayMs / 7);
+      if (idx >= 0 && idx < numWeeks) {
+        if (r.uid === currentUser.uid) a[idx] += r.points;
+        else if (r.uid === pUid) b[idx] += r.points;
+      }
+    });
+    drawTrend(a, b);
   }
 }
 
